@@ -23,7 +23,7 @@ void eliminarAutoEsperando(int esquina)
 
 void vTask(void *arg)
 {
-  static int alreadyInQueue = 0;
+  int alreadyInQueue = 0;
   int id = *((int *)arg);
   int received;
   Serial.print("Entrando en id ");
@@ -31,6 +31,9 @@ void vTask(void *arg)
 
   while (1)
   {
+    Serial.print("alreadyInQueue id ");
+    Serial.print(alreadyInQueue);
+    Serial.println(id);
     if (autos[id] != 0 && !alreadyInQueue)
     {
       Serial.print("Holaaa");
@@ -48,6 +51,9 @@ void vTask(void *arg)
       if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
       {
         int info;
+        Serial.print("info");
+        Serial.print(info);
+
         while (info != id)
         {
           xQueuePeek(queue, &info, (TickType_t)10);
@@ -58,7 +64,7 @@ void vTask(void *arg)
         alreadyInQueue = 0;
         while (autos[id] > 0)
         {
-          eliminarAutoEsperando(id);
+          autos[id]--;
           Serial.print("Eliminando de id ");
           Serial.println(id);
         }
