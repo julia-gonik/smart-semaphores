@@ -10,10 +10,31 @@ SemaphoreHandle_t mutex;
 QueueHandle_t queue;
 
 int autos[] = {0, 0, 0, 0};
+int alreadyInQueue[] = {0, 0, 0, 0};
 
 void agregarAutoEsperando(int esquina, int cantidad = 1)
 {
+  Serial.print("Agregando ");
+  Serial.print(cantidad);
+  Serial.print(" autos a la esquina ");
+  Serial.println(esquina);
   autos[esquina] += cantidad;
+}
+
+void prenderLedVerde(int esquina)
+{
+  Serial.print("Luz verde en ");
+  Serial.print(esquina);
+  Serial.print(". Autos: ");
+  Serial.println(autos[esquina]);
+}
+
+void prenderLedRojo(int esquina)
+{
+  Serial.print("Luz roja en ");
+  Serial.print(esquina);
+  Serial.print(". Autos: ");
+  Serial.println(autos[esquina]);
 }
 
 void eliminarAutoEsperando(int esquina)
@@ -23,56 +44,100 @@ void eliminarAutoEsperando(int esquina)
 
 void vTask(void *arg)
 {
-  int alreadyInQueue = 0;
   int id = *((int *)arg);
-  int received;
-  Serial.print("Entrando en id ");
-  Serial.println(id);
 
   while (1)
-  {
-    Serial.print("alreadyInQueue id ");
-    Serial.print(alreadyInQueue);
-    Serial.println(id);
-    if (autos[id] != 0 && !alreadyInQueue)
-    {
-      Serial.print("Holaaa");
 
-      if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
-      {
-        Serial.print("chauu");
-        xQueueSendToBack(queue, &id, (TickType_t)10);
-        alreadyInQueue = 1;
-        xSemaphoreGive(mutex);
-      }
-    }
-    else
+    if (autos[id] != 0)
     {
-      if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
+      if (!alreadyInQueue[id])
       {
-        int info;
-        Serial.print("info");
-        Serial.print(info);
 
-        while (info != id)
+        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
         {
-          xQueuePeek(queue, &info, (TickType_t)10);
+          xQueueSendToBack(queue, &id, (TickType_t)10);
+          alreadyInQueue[id] = 1;
           xSemaphoreGive(mutex);
-          xSemaphoreTake(mutex, portMAX_DELAY);
         }
-        xQueueReceive(queue, &received, (TickType_t)10);
-        alreadyInQueue = 0;
-        while (autos[id] > 0)
-        {
-          autos[id]--;
-          Serial.print("Eliminando de id ");
-          Serial.println(id);
-        }
+      }
+      else
 
-        xSemaphoreGive(mutex);
+      {
+        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
+        {
+          int info;
+
+          while (info != id)
+          {
+            xQueuePeek(queue, &info, (TickType_t)10);
+            xSemaphoreGive(mutex);
+            xSemaphoreTake(mutex, portMAX_DELAY);
+          }
+
+          int received;
+          xQueueReceive(queue, &received, (TickType_t)10);
+          alreadyInQueue[id] = 0;
+
+          prenderLedVerde(id);
+
+          while (autos[id] > 0)
+          {
+            delay(100);
+            Serial.print("Eliminando auto de ");
+            Serial.println(id);
+            autos[id]--;
+          }
+
+          prenderLedRojo(id);
+
+          xSemaphoreGive(mutex);
+        }
       }
     }
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+}
+
+void addCarsTask1(void *arg)
+{
+  while (1)
+  {
+    // Simulate the addition of cars
+    agregarAutoEsperando(1, 5);
+
+    vTaskDelay(1500 / portTICK_PERIOD_MS); // Delay for 5 seconds
+  }
+}
+
+void addCarsTask2(void *arg)
+{
+  while (1)
+  {
+    // Simulate the addition of cars
+    agregarAutoEsperando(2, 2);
+
+    vTaskDelay(3000 / portTICK_PERIOD_MS); // Delay for 5 seconds
+  }
+}
+
+void addCarsTask3(void *arg)
+{
+  while (1)
+  {
+    // Simulate the addition of cars
+    agregarAutoEsperando(3, 1);
+
+    vTaskDelay(2000 / portTICK_PERIOD_MS); // Delay for 5 seconds
+  }
+}
+
+void addCarsTask0(void *arg)
+{
+  while (1)
+  {
+    // Simulate the addition of cars
+    agregarAutoEsperando(0, 10);
+
+    vTaskDelay(5000 / portTICK_PERIOD_MS); // Delay for 5 seconds
   }
 }
 
@@ -82,26 +147,25 @@ void setup()
 
   mutex = xSemaphoreCreateMutex();
   queue = xQueueCreate(4, sizeof(int));
+
   for (int i = 0; i < NUM_SEMAFOROS; i++)
   {
     agregarAutoEsperando(i, 3);
   }
 
-  // Crear tareas para controlar semáforos
   for (int i = 0; i < 4; i++)
   {
-    /*     Serial.print("creando el id ");
-        Serial.print(i); */
 
-    // Create a separate variable for each task
     int *taskId = new int(i);
-
-    // Pass the address of the separate variable to the task
     xTaskCreate(vTask, "Semaforo", 2048, (void *)taskId, 1, NULL);
   }
+
+  xTaskCreate(addCarsTask0, "AddCarsTask", 2048, NULL, 1, NULL);
+  xTaskCreate(addCarsTask1, "AddCarsTask", 2048, NULL, 1, NULL);
+  xTaskCreate(addCarsTask2, "AddCarsTask", 2048, NULL, 1, NULL);
+  xTaskCreate(addCarsTask3, "AddCarsTask", 2048, NULL, 1, NULL);
 }
 
 void loop()
 {
-  // put your main code here, to run repeatedly:
 }
