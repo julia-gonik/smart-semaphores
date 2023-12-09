@@ -57,7 +57,11 @@ int encontrarIndiceNumeroMasChico(int *tieneAutos)
 
   for (int i = 0; i < NUM_SEMAFOROS; i++)
   {
-    if (autos[i] != 0 && autos[i] < autos[indiceMenor])
+    Serial.print("Esquina ");
+    Serial.print(i);
+    Serial.print(" autos: ");
+    Serial.println(autos[i]);
+    if (autos[i] != 0 && autos[i] < autos[indiceMenor] || autos[indiceMenor] == 0)
     {
       // Encontramos un número más pequeño, actualizamos el índice
       indiceMenor = i;
@@ -76,14 +80,20 @@ void vTaskScheduler(void *arg)
   {
     if (!estaUnSemaforoCorriendo)
     {
-      siguienteSemaforo = encontrarIndiceNumeroMasChico(&tieneAutos);
-
-      if (tieneAutos)
+      if (xSemaphoreTake(autos_mutex, portMAX_DELAY) == pdTRUE)
       {
-        estaUnSemaforoCorriendo = 1;
-        xSemaphoreGive(semaforos[siguienteSemaforo]);
+        siguienteSemaforo = encontrarIndiceNumeroMasChico(&tieneAutos);
+
+        if (tieneAutos)
+        {
+          estaUnSemaforoCorriendo = 1;
+          xSemaphoreGive(semaforos[siguienteSemaforo]);
+        }
+
+        xSemaphoreGive(autos_mutex);
       }
     }
+    vTaskDelay(2000 / portTICK_PERIOD_MS); // Delay for 5 seconds
   }
 }
 
@@ -107,58 +117,13 @@ void vTask(void *arg)
           Serial.println(id);
           autos[id]--;
         }
+
+        prenderLedRojo(id);
+
+        xSemaphoreGive(autos_mutex);
+        estaUnSemaforoCorriendo = 0;
       }
-
-      prenderLedRojo(id);
-
-      xSemaphoreGive(autos_mutex);
-      estaUnSemaforoCorriendo = 0;
     }
-  }
-}
-
-void addCarsTask1(void *arg)
-{
-  while (1)
-  {
-    if (xSemaphoreTake(autos_mutex, portMAX_DELAY) == pdTRUE)
-    {
-      int random = getRandomInteger(1, 4);
-      agregarAutoEsperando(1, random);
-    }
-
-    xSemaphoreGive(autos_mutex);
-    vTaskDelay(5000 / portTICK_PERIOD_MS); // Delay for 5 seconds
-  }
-}
-
-void addCarsTask2(void *arg)
-{
-  while (1)
-  {
-    if (xSemaphoreTake(autos_mutex, portMAX_DELAY) == pdTRUE)
-    {
-      int random = getRandomInteger(1, 4);
-      agregarAutoEsperando(2, random);
-    }
-
-    xSemaphoreGive(autos_mutex);
-    vTaskDelay(5000 / portTICK_PERIOD_MS); // Delay for 5 seconds
-  }
-}
-
-void addCarsTask3(void *arg)
-{
-  while (1)
-  {
-    if (xSemaphoreTake(autos_mutex, portMAX_DELAY) == pdTRUE)
-    {
-      int random = getRandomInteger(1, 4);
-      agregarAutoEsperando(3, random);
-    }
-
-    xSemaphoreGive(autos_mutex);
-    vTaskDelay(5000 / portTICK_PERIOD_MS); // Delay for 5 seconds
   }
 }
 
@@ -169,8 +134,8 @@ void addCarsTask0(void *arg)
     if (xSemaphoreTake(autos_mutex, portMAX_DELAY) == pdTRUE)
     {
       int random = getRandomInteger(1, 4);
-      int esquina = getRandomInteger(0, 4);
-      agregarAutoEsperando(esquina random);
+      int esquina = getRandomInteger(0, 3);
+      agregarAutoEsperando(esquina, random);
     }
 
     xSemaphoreGive(autos_mutex);
@@ -201,9 +166,6 @@ void setup()
   }
 
   xTaskCreate(addCarsTask0, "AddCarsTask", 1024, NULL, 3, NULL);
-  xTaskCreate(addCarsTask1, "AddCarsTask", 1024, NULL, 3, NULL);
-  xTaskCreate(addCarsTask2, "AddCarsTask", 1024, NULL, 3, NULL);
-  xTaskCreate(addCarsTask3, "AddCarsTask", 1024, NULL, 3, NULL);
 
   xTaskCreate(vTaskScheduler, "scheduler", 2048, NULL, 1, NULL);
 
