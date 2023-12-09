@@ -48,50 +48,43 @@ void vTask(void *arg)
 
   while (1)
 
-    if (autos[id] != 0)
+    if (autos[id] != 0 && !alreadyInQueue[id])
     {
-      if (!alreadyInQueue[id])
-      {
 
-        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
-        {
-          xQueueSendToBack(queue, &id, (TickType_t)10);
-          alreadyInQueue[id] = 1;
-          xSemaphoreGive(mutex);
-        }
+      if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
+      {
+        xQueueSendToBack(queue, &id, (TickType_t)10);
+        alreadyInQueue[id] = 1;
+        xSemaphoreGive(mutex);
       }
-      else
-
+    }
+    else
+    {
+      if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
       {
-        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
+        int info;
+
+        while (info != id)
         {
-          int info;
-
-          while (info != id)
-          {
-            xQueuePeek(queue, &info, (TickType_t)10);
-            xSemaphoreGive(mutex);
-            xSemaphoreTake(mutex, portMAX_DELAY);
-          }
-
-          int received;
-          xQueueReceive(queue, &received, (TickType_t)10);
-          alreadyInQueue[id] = 0;
-
-          prenderLedVerde(id);
-
-          while (autos[id] > 0)
-          {
-            delay(100);
-            Serial.print("Eliminando auto de ");
-            Serial.println(id);
-            autos[id]--;
-          }
-
-          prenderLedRojo(id);
-
+          xQueuePeek(queue, &info, (TickType_t)10);
           xSemaphoreGive(mutex);
+          xSemaphoreTake(mutex, portMAX_DELAY);
         }
+
+        int received;
+        xQueueReceive(queue, &received, (TickType_t)10);
+        alreadyInQueue[id] = 0;
+
+        prenderLedVerde(id);
+
+        while (autos[id] > 0)
+        {
+          autos[id]--;
+        }
+
+        prenderLedRojo(id);
+
+        xSemaphoreGive(mutex);
       }
     }
   vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -104,7 +97,7 @@ void addCarsTask1(void *arg)
     // Simulate the addition of cars
     agregarAutoEsperando(1, 5);
 
-    vTaskDelay(1500 / portTICK_PERIOD_MS); // Delay for 5 seconds
+    vTaskDelay(4000 / portTICK_PERIOD_MS); // Delay for 5 seconds
   }
 }
 
@@ -160,10 +153,10 @@ void setup()
     xTaskCreate(vTask, "Semaforo", 2048, (void *)taskId, 1, NULL);
   }
 
-  xTaskCreate(addCarsTask0, "AddCarsTask", 2048, NULL, 1, NULL);
-  xTaskCreate(addCarsTask1, "AddCarsTask", 2048, NULL, 1, NULL);
-  xTaskCreate(addCarsTask2, "AddCarsTask", 2048, NULL, 1, NULL);
-  xTaskCreate(addCarsTask3, "AddCarsTask", 2048, NULL, 1, NULL);
+  xTaskCreate(addCarsTask0, "AddCarsTask", 1024, NULL, 3, NULL);
+  xTaskCreate(addCarsTask1, "AddCarsTask", 1024, NULL, 3, NULL);
+  xTaskCreate(addCarsTask2, "AddCarsTask", 1024, NULL, 3, NULL);
+  xTaskCreate(addCarsTask3, "AddCarsTask", 1024, NULL, 3, NULL);
 }
 
 void loop()
