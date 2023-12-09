@@ -63,7 +63,6 @@ int encontrarIndiceNumeroMasChico(int *tieneAutos)
     Serial.println(autos[i]);
     if (autos[i] != 0 && autos[i] < autos[indiceMenor] || autos[indiceMenor] == 0)
     {
-      // Encontramos un número más pequeño, actualizamos el índice
       indiceMenor = i;
     }
   }
@@ -127,14 +126,14 @@ void vTask(void *arg)
   }
 }
 
-void addCarsTask0(void *arg)
+void addCarsTask(void *arg)
 {
   while (1)
   {
     if (xSemaphoreTake(autos_mutex, portMAX_DELAY) == pdTRUE)
     {
       int random = getRandomInteger(1, 4);
-      int esquina = getRandomInteger(0, 3);
+      int esquina = getRandomInteger(0, NUM_SEMAFOROS - 1);
       agregarAutoEsperando(esquina, random);
     }
 
@@ -148,25 +147,18 @@ void setup()
   Serial.begin(115200);
 
   autos_mutex = xSemaphoreCreateMutex();
-  semaforos[0] = xSemaphoreCreateBinary();
-  semaforos[1] = xSemaphoreCreateBinary();
-  semaforos[2] = xSemaphoreCreateBinary();
-  semaforos[3] = xSemaphoreCreateBinary();
   scheduler = xSemaphoreCreateBinary();
 
-  agregarAutoEsperando(0, 1);
-  agregarAutoEsperando(1, 1);
-  agregarAutoEsperando(2, 1);
-  agregarAutoEsperando(3, 1);
-
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < NUM_SEMAFOROS; i++)
   {
     int *taskId = new int(i);
+
+    semaforos[i] = xSemaphoreCreateBinary();
+    agregarAutoEsperando(i, 1);
     xTaskCreate(vTask, "Semaforo", 2048, (void *)taskId, 1, NULL);
   }
 
-  xTaskCreate(addCarsTask0, "AddCarsTask", 1024, NULL, 3, NULL);
-
+  xTaskCreate(addCarsTask, "AddCarsTask", 1024, NULL, 3, NULL);
   xTaskCreate(vTaskScheduler, "scheduler", 2048, NULL, 1, NULL);
 
   xSemaphoreGive(scheduler);
