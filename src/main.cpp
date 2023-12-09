@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #define NUM_SEMAFOROS 4
+#define QUANTUM 2
 
 SemaphoreHandle_t mutex;
 QueueHandle_t queue;
@@ -43,6 +44,7 @@ void eliminarAutoEsperando(int esquina)
 void vTask(void *arg)
 {
   int id = *((int *)arg);
+  int quantum = QUANTUM;
 
   while (1)
   {
@@ -77,12 +79,17 @@ void vTask(void *arg)
 
           prenderLedVerde(id);
 
-          while (autos[id] > 0)
+          while (autos[id] > 0 && quantum > 0)
           {
             delay(50);
             Serial.print("Eliminando de id ");
             Serial.println(id);
             autos[id]--;
+            quantum--;
+          }
+          if (autos[id] > 0)
+          {
+            xQueueSendToBack(queue, &id, (TickType_t)10);
           }
 
           prenderLedRojo(id);
