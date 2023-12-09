@@ -14,7 +14,10 @@ int alreadyInQueue[] = {0, 0, 0, 0};
 
 void agregarAutoEsperando(int esquina, int cantidad = 1)
 {
-  Serial.print("Agregando ");
+  Serial.print("Agregando en ");
+  Serial.print(esquina);
+  Serial.print(". Autos: ");
+  Serial.println(cantidad);
   autos[esquina] += cantidad;
 }
 
@@ -28,8 +31,8 @@ void prenderLedVerde(int esquina)
 
 void prenderLedRojo(int esquina)
 {
-
-  Serial.println(autos[esquina]);
+  Serial.print("Luz roja en ");
+  Serial.println(esquina);
 }
 
 void eliminarAutoEsperando(int esquina)
@@ -43,45 +46,49 @@ void vTask(void *arg)
 
   while (1)
   {
-    if (autos[id] != 0 && !alreadyInQueue[id])
+    if (autos[id != 0])
     {
-
-      if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
+      if (!alreadyInQueue[id])
       {
-        xQueueSendToBack(queue, &id, (TickType_t)10);
-        alreadyInQueue[id] = 1;
-        xSemaphoreGive(mutex);
-      }
-    }
-    else
-    {
-      if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
-      {
-        int info;
 
-        while (info != id)
+        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
         {
-          xQueuePeek(queue, &info, (TickType_t)10);
+          xQueueSendToBack(queue, &id, (TickType_t)10);
+          alreadyInQueue[id] = 1;
           xSemaphoreGive(mutex);
-          xSemaphoreTake(mutex, portMAX_DELAY);
         }
-
-        int received;
-        xQueueReceive(queue, &received, (TickType_t)10);
-        alreadyInQueue[id] = 0;
-
-        prenderLedVerde(id);
-
-        while (autos[id] > 0)
+      }
+      else
+      {
+        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
         {
-          Serial.print("Eliminando de id ");
-          Serial.println(id);
-          autos[id]--;
+          int info;
+
+          while (info != id)
+          {
+            xQueuePeek(queue, &info, (TickType_t)10);
+            xSemaphoreGive(mutex);
+            xSemaphoreTake(mutex, portMAX_DELAY);
+          }
+
+          int received;
+          xQueueReceive(queue, &received, (TickType_t)10);
+          alreadyInQueue[id] = 0;
+
+          prenderLedVerde(id);
+
+          while (autos[id] > 0)
+          {
+            delay(50);
+            Serial.print("Eliminando de id ");
+            Serial.println(id);
+            autos[id]--;
+          }
+
+          prenderLedRojo(id);
+
+          xSemaphoreGive(mutex);
         }
-
-        prenderLedRojo(id);
-
-        xSemaphoreGive(mutex);
       }
     }
     vTaskDelay(100 / portTICK_PERIOD_MS);
