@@ -46,7 +46,7 @@ void vTask(void *arg)
 
   while (1)
   {
-    if (autos[id != 0])
+    if (autos[id] != 0)
     {
       if (!alreadyInQueue[id])
       {
