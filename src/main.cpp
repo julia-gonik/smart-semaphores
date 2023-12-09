@@ -15,9 +15,6 @@ int alreadyInQueue[] = {0, 0, 0, 0};
 void agregarAutoEsperando(int esquina, int cantidad = 1)
 {
   Serial.print("Agregando ");
-  Serial.print(cantidad);
-  Serial.print(" autos a la esquina ");
-  Serial.println(esquina);
   autos[esquina] += cantidad;
 }
 
@@ -31,9 +28,7 @@ void prenderLedVerde(int esquina)
 
 void prenderLedRojo(int esquina)
 {
-  Serial.print("Luz roja en ");
-  Serial.print(esquina);
-  Serial.print(". Autos: ");
+
   Serial.println(autos[esquina]);
 }
 
@@ -47,7 +42,7 @@ void vTask(void *arg)
   int id = *((int *)arg);
 
   while (1)
-
+  {
     if (autos[id] != 0 && !alreadyInQueue[id])
     {
 
@@ -79,6 +74,8 @@ void vTask(void *arg)
 
         while (autos[id] > 0)
         {
+          Serial.print("Eliminando de id ");
+          Serial.println(id);
           autos[id]--;
         }
 
@@ -87,7 +84,8 @@ void vTask(void *arg)
         xSemaphoreGive(mutex);
       }
     }
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
 }
 
 void addCarsTask1(void *arg)
